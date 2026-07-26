@@ -1,0 +1,41 @@
+# NOTE: ClusterIssuer of type "ca" requires its secret to live in cert-manager's
+# "cluster resource namespace" (the namespace cert-manager itself is installed
+# in -- "cert-manager" by default). So the bootstrap issuer + CA cert below are
+# created in the cert-manager namespace, not "default".
+
+# Step 1: A bootstrap "self-signing" Issuer, used only to mint our own CA cert.
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: selfsigned-bootstrap
+  namespace: cert-manager
+spec:
+  selfSigned: {}
+---
+# Step 2: A CA certificate, signed by the bootstrap issuer above.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: company-local-ca
+  namespace: cert-manager
+spec:
+  isCA: true
+  commonName: company.local Root CA
+  secretName: company-local-ca-secret
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name: selfsigned-bootstrap
+    kind: Issuer
+  duration: 8760h   # 1 year
+  renewBefore: 720h # renew 30 days before expiry
+---
+# Step 3: A ClusterIssuer that signs real certs using the CA created above.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: company-local-ca-issuer
+spec:
+  ca:
+    secretName: company-local-ca-secret

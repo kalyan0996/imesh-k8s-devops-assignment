@@ -1,0 +1,19 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: company-local-tls
+  namespace: default
+spec:
+  secretName: company-local-tls   # referenced by the Gateway's HTTPS listener
+  duration: 2160h      # 90 days
+  renewBefore: 360h    # renew 15 days before expiry
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  dnsNames:
+    - web.company.local
+    - api.company.local
+    - test.company.local
+  issuerRef:
+    name: company-local-ca-issuer
+    kind: ClusterIssuer

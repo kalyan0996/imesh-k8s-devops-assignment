@@ -1,0 +1,49 @@
+# Envoy Gateway extension CRD. Attaches request timeout, retry policy,
+# and rate limiting to the httpbin-route HTTPRoute.
+
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: BackendTrafficPolicy
+metadata:
+  name: httpbin-traffic-policy
+  namespace: default
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: httpbin-route
+
+  # Request timeout
+  timeout:
+    http:
+      requestTimeout: 5s
+
+  # Retry policy
+  retry:
+    numRetries: 3
+    perRetry:
+      timeout: 2s
+      backOff:
+        baseInterval: 200ms
+        maxInterval: 1s
+    retryOn:
+      httpStatusCodes:
+        - 500
+        - 502
+        - 503
+      triggers:
+        - connect-failure
+        - retriable-4xx
+        - reset
+
+  # Rate limiting: 10 requests/minute.
+  # Using "Local" rate limiting -- enforced per-Envoy-proxy-instance in-memory,
+  # no extra Redis/ratelimit backend needed (good enough for this assignment).
+  # For multi-replica production Envoy Gateway you would use type: Global,
+  # which needs the ratelimit backend (Redis) enabled in the EnvoyGateway config.
+  rateLimit:
+    type: Local
+    local:
+      rules:
+        - limit:
+            requests: 10
+            unit: Minute
